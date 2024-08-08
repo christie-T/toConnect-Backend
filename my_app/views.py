@@ -15,8 +15,11 @@ from bson.objectid import ObjectId
 from djangoBackend import settings
 from djangoBackend.mongodb import db
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.models import User
+from django.contrib.auth.decorators import login_required
+from django.contrib.sessions.models import Session
 from django.utils.crypto import get_random_string
-from django.contrib.auth import login as auth_login, authenticate
+from django.contrib.auth import authenticate, login
 from django.contrib.auth.hashers import make_password, check_password
 from django.core.mail import send_mail
 
@@ -24,70 +27,156 @@ import json
 from datetime import datetime
 
 # log configuration
+logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
 # configure the mongodb connection 
 client = MongoClient(settings.MONGO_URI)
 db = client[settings.MONGO_DB_NAME]
 
+# session debug
+from django.contrib.sessions.models import Session
+
+def check_sessions_view(request):
+    sessions = Session.objects.all()
+    response_data = []
+    for session in sessions:
+        session_data = f'Session: {session.session_key}, Data: {session.get_decoded()}'
+        response_data.append(session_data)
+    
+    return HttpResponse('<br>'.join(response_data))
+
+
 ###########  API for signup/_layout.tsx
 
 @csrf_exempt
 def signup(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
-        email = data['email']
-        password = data['password']
-        confirm_password = data['confirmPassword']
+        try:
+            data = json.loads(request.body)
+            email = data.get('email')
+            password = data.get('password')
+            confirm_password = data.get('confirmPassword')
 
-        if password != confirm_password:
-            return JsonResponse({'error': 'Passwords do not match'}, status=400)
+            logger.debug(f'Received signup request with email: {email}')
 
-        user_collection = db.users
-        if user_collection.find_one({"email": email}):
-            return JsonResponse({'error': 'Email already in use'}, status=400)
+            # passwords match?
+            if password != confirm_password:
+                logger.warning('Passwords do not match')
+                return JsonResponse({'error': 'Passwords do not match'}, status=400)
 
-        hashed_password = make_password(password)
-        user_uid = get_random_string(length=32)
-        user_data = {
-            "display_name": "", 
-            "email": email,
-            "phone": "",  
-            "created_date": datetime.utcnow(),
-            "last_sign_in": None,
-            "user_uid": user_uid,
-            "password": hashed_password
-        }
-        user_collection.insert_one(user_data)
-        return JsonResponse({'success': 'User created'}, status=201)
-    
-    return JsonResponse({'error': 'Invalid request method'}, status=400)
+            # check if email already exists
+            if User.objects.filter(email=email).exists():
+                logger.warning('Email already exists')
+                return JsonResponse({'error': 'Email already exists'}, status=400)
 
+            # create the user, user session
+            user = User.objects.create_user(username=email, email=email, password=password)
+
+            # log the user in with Django auth
+            login(request, user)
+
+            # retrieve the session key
+            session_key = request.session.session_key
+            logger.info(f'Successfully created and logged in user with session_key: {session_key}')
+
+            # return the success response along with session key
+            return JsonResponse({'message': 'User created and logged in successfully', 'session_key': session_key}, status=201)
+        
+        except Exception as e:
+            logger.error(f'Error occurred: {str(e)}')
+            return JsonResponse({'error': str(e)}, status=400)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 @csrf_exempt
-def login(request):
+def signin(request):
     if request.method == 'POST':
-        data = json.loads(request.body)
-        email = data['email']
-        password = data['password']
+        try:
+            data = json.loads(request.body)
+            email = data.get('email')
+            password = data.get('password')
 
-        user_collection = db.users
-        user = user_collection.find_one({"email": email})
-
-        if user and check_password(password, user['password']):
-            user_collection.update_one({"email": email}, {"$set": {"last_sign_in": datetime.utcnow()}})
-            
-            # Authenticate user with Django's authentication system
+            # authenticate the user
             user = authenticate(request, username=email, password=password)
+
             if user is not None:
-                auth_login(request, user)  # Log user in
-                return JsonResponse({'success': 'Login successful'}, status=200)
+                # log in the user, create a session
+                login(request, user)
+                return JsonResponse({'message': 'Login successful'}, status=200)
             else:
-                return JsonResponse({'error': 'Invalid credentials'}, status=400)
-        
-        return JsonResponse({'error': 'Invalid credentials'}, status=400)
+                return JsonResponse({'error': 'Invalid email or password'}, status=400)
+
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+    # 
+    if request.method == 'GET':
+        return JsonResponse({'message': 'Please send a POST request with email and password'}, status=400)
+
+###########  API for setup/name/_layout.tsx  
+
+@csrf_exempt
+def get_profile(request):
+    if request.method == 'GET':
+        user_id = request.user.id
+        profile_collection = db.profiles
+        profile = profile_collection.find_one({"id": user_id})
+
+        if profile:
+            return JsonResponse(profile, status=200)
+        else:
+            return JsonResponse({'error': 'Profile not found'}, status=404)
 
     return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+@csrf_exempt
+def update_profile(request):
+    logger.debug("Entered update_profile view")
+
+    if not request.user.is_authenticated:
+        logger.debug("User is not authenticated")
+        return JsonResponse({'error': 'User is not authenticated'}, status=401)
+
+    if request.method == 'POST':
+        logger.debug("Processing POST request")
+        try:
+            data = json.loads(request.body)
+            logger.debug(f"Received data: {data}")
+
+            user_id = request.user.id
+            full_name = data.get('full_name')
+            logger.debug(f"User ID: {user_id}, Full Name: {full_name}")
+
+            if not full_name:
+                logger.debug("Full name is missing")
+                return JsonResponse({'error': 'Full name is required'}, status=400)
+
+            profile_collection = db.profiles
+            result = profile_collection.update_one(
+                {"id": user_id},
+                {"$set": {"full_name": full_name, "updated_at": datetime.utcnow()}},
+                upsert=True
+            )
+
+            logger.debug(f"Update result: modified_count={result.modified_count}, upserted_id={result.upserted_id}")
+
+            if result.modified_count > 0 or result.upserted_id:
+                logger.debug("Profile updated successfully")
+                return JsonResponse({'success': 'Profile updated'}, status=201)
+            else:
+                logger.debug("Failed to update profile")
+                return JsonResponse({'error': 'Failed to update profile'}, status=500)
+        
+        except json.JSONDecodeError:
+            logger.debug("Invalid JSON")
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            logger.error(f"Unexpected error: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+    logger.debug("Invalid request method")
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 ###########  API for reportHide.tsx  
 
@@ -157,3 +246,5 @@ def handle_hide(request):
     except Exception as e:
         print(f"Error in handle_hide: {e}")  # Debug statement
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+

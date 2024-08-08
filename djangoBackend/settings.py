@@ -43,11 +43,12 @@ INSTALLED_APPS = [
     'corsheaders',
 ]
 
+CORS_ALLOW_CREDENTIALS = True
+
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:8081',  # Adjust this with your actual frontend URL
 ]
 
-CORS_ALLOW_CREDENTIALS = True
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -60,6 +61,21 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.common.CommonMiddleware',
 
+]
+
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_NAME = 'sessioncookie'
+SESSION_COOKIE_SECURE = True # Set to True if using HTTPS
+SESSION_COOKIE_HTTPONLY = True  
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SESSION_COOKIE_SAMESITE = None
+CRSF_COOKIE_SAMESITE = None
+CSRF_COOKIE_SECURE = True
+
+
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8081',  # Add your frontend URL here
+    'http://127.0.0.1:8081',  # Add if you use this URL for local testing
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
@@ -84,6 +100,9 @@ CORS_ALLOW_HEADERS = [
     "cache-control",
     "pragma",
 ]
+
+CORS_ALLOW_CREDENTIALS = True
+
 
 ROOT_URLCONF = 'djangoBackend.urls'
 
