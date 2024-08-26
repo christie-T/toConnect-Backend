@@ -40,13 +40,15 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_extensions',
     'corsheaders',
+    'my_app'
 ]
 
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:8081',  # Adjust this with your actual frontend URL
+    'https://localhost:8081',  # Adjust this with your actual frontend URL
 ]
 
 
@@ -65,17 +67,18 @@ MIDDLEWARE = [
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_NAME = 'sessioncookie'
+SESSION_COOKIE_SAMESITE = 'None'
 SESSION_COOKIE_SECURE = True # Set to True if using HTTPS
 SESSION_COOKIE_HTTPONLY = True  
+
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-SESSION_COOKIE_SAMESITE = None
-CRSF_COOKIE_SAMESITE = None
+CRSF_COOKIE_SAMESITE = 'None'
 CSRF_COOKIE_SECURE = True
 
 
 CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:8081',  # Add your frontend URL here
-    'http://127.0.0.1:8081',  # Add if you use this URL for local testing
+    'https://localhost:8081',  # Add your frontend URL here
+    'https://127.0.0.1:8081',  # Add if you use this URL for local testing
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
@@ -125,21 +128,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'djangoBackend.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
-
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'djongo',
-#         'NAME': 'toConnect',
-#         'ENFORCE_SCHEMA': False,
-#         'CLIENT': {
-#             'host': '127.0.0.1',
-#             'port': 27017,
-#             'authMechanism': 'SCRAM-SHA-1',
-#         }
-#     }   
-# }
 
 DATABASES = {
     'default': {
@@ -150,9 +138,6 @@ DATABASES = {
     }
 }
 
-
-# Password validation
-# https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -176,9 +161,9 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587  # Typically 587 for TLS, 465 for SSL
 EMAIL_USE_TLS = True  # Use TLS for secure connection
 EMAIL_USE_SSL = False  # If using SSL, set to True and EMAIL_USE_TLS to False
-EMAIL_HOST_USER = 'christietang23@gmail.com' 
-EMAIL_HOST_PASSWORD = '2Z748q123!'  # Password for email account
-DEFAULT_FROM_EMAIL = 'christietang23@gmail.com'
+EMAIL_HOST_USER = '' 
+EMAIL_HOST_PASSWORD = ''  # Password for email account
+DEFAULT_FROM_EMAIL = ''
 
 
 # Internationalization
