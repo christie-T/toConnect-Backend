@@ -501,10 +501,10 @@ def handle_hide(request):
 def remove_account(request):
     user_pk = request.user.pk
     
-    # Log the user out
+    # logout user
     auth_logout(request)
     
-    # Deactivate the user's account
+    # flag user as inactive
     User = get_user_model()
     User.objects.filter(pk=user_pk).update(is_active=False)
     
