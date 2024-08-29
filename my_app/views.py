@@ -17,10 +17,11 @@ from djangoBackend import settings
 from djangoBackend.mongodb import db
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
 from django.contrib.sessions.models import Session
 from django.utils.crypto import get_random_string
 from django.contrib.auth.models import User
-from django.contrib.auth import authenticate, login, get_user_model
+from django.contrib.auth import authenticate, login, get_user_model, logout as auth_logout
 from django.contrib.auth.hashers import make_password, check_password
 from django.core.mail import send_mail
 from django.utils.timezone import now
@@ -380,13 +381,15 @@ def get_posts(request):
     return JsonResponse({'posts': posts}, status=200)
 
 
+###########  API for goingList/_layout.tsx  
+
 @login_required
 def create_going(request, post_id):
-    user = request.user
+    user = request.user        
     going_collection = db.going
     profiles_collection = db.profiles
 
-    # fetch user's ID from profiles db
+    # fetch user's ID from profiles db // CAN PROB SIMPLIFY THIS by just accessing ObjectID(user.id) and storing that, haven't tested for this API yet though
     user_profile = profiles_collection.find_one({'_id': ObjectId(user.id)})
 
     if not user_profile:
@@ -491,3 +494,19 @@ def handle_hide(request):
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 
+###########  API for profile/_layout.tsx  (Account Inactive Flag)
+
+@login_required
+@require_http_methods(['POST'])
+def remove_account(request):
+    user_pk = request.user.pk
+    
+    # Log the user out
+    auth_logout(request)
+    
+    # Deactivate the user's account
+    User = get_user_model()
+    User.objects.filter(pk=user_pk).update(is_active=False)
+    
+    # Return a success response
+    return JsonResponse({'success': True, 'message': 'Account successfully deactivated.'})
