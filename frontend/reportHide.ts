@@ -14,7 +14,7 @@ export async function addReport(selectedPostId: string | null, reason: string) {
             selectedPostId: selectedPostId,
             reason: reason
         }, {
-            withCredentials: true // 
+            withCredentials: true
         });
 
         if (response.status === 200) {
@@ -31,10 +31,10 @@ export async function addReport(selectedPostId: string | null, reason: string) {
 
 export async function handleHide(auth:any, postId: string) {
     
-    if (!auth.session) return; // Return early if no active user session
+    if (!auth.session) return; // return early if no active user session
 
     try {
-        // Make a POST request to your Django backend
+        // request backend
         const response = await axios.post(`${BASE_URL}/handle_hide`, {
             postId: postId
         }, {

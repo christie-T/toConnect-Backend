@@ -35,7 +35,7 @@ export default function SignIn() {
               email,
               password
           }, {
-              withCredentials: true, // Ensure cookies are sent with the request
+              withCredentials: true, 
           });
 
           if (response.status === 201) {
